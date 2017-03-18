@@ -1,165 +1,96 @@
-/****
- * reduce function
- *
- * 根据action的type 和 相关的数据 , 产生新的state
- * reduce第一次运行时创建初始化state
- * reduce function 是纯函数
- *
- *  因为这个测试页面都是在浏览器里面, 所以只能都写在一起 , 写在这个app.tsx里面
- */
+// 引入redux
+import {Action , Reducer , createStore, Store, ReducersMapObject,combineReducers } from 'redux'
 
-// 步骤一:　理解数组的reduce方法
-
-/*
-const nums = [1, 2, 3, 4, 5]
-const sum = nums.reduce((prev, current) => {
-    console.log('prev', prev, 'current', current)
-    return prev + current;
-})
-
-console.log(sum)
-*/
-
-//步骤二:  理解action和state , 用action和state来替换reduce方法中的变量
-
-//reduce 除了启动时, 第一个参数是初始化参数外
-// 后面的每次循环   prev 参数都是上一次的运算结果
-
-// 每次拿传递过来的参数(上一次的状态) , 用新的参数(action)来运算,  得出一个新的结果(新的状态)
-// 于是就理解成了 , action 修改了 state
-
-// 当我饿了, 我就去吃饭 , 吃完饭就饱了  ,   吃饭就是一个action , 饿 和 饱就是不同的state
-// 那么改造上面的代码
-
-/*
-const actions = [1, 2, 3, 4, 5]
-const finalState = actions.reduce((state, action) => {
-    console.log('state', state, 'action', action)
-    return state + action
-})
-console.log(finalState)
-*/
-
-// 步骤三: 改造action
-//在步骤二中, actions 只是单纯的数据 , 并不是实际的怎么操作, 那么这里我们把action替换成type 和 value 的对象结构
-
-/*
-const actions = [{type: 'add', value: 1}, {type: 'subtract', value: 2}, {type: 'add', value: 3},
-    {type: 'subtract', value: 4}, {type: 'add', value: 5}]
-
-const finalState = actions.reduce((state, action) => {
-    console.log('state', state, 'action', action)
-    switch (action.type) {
-        case  'add':
-            return state + action.value //因为有return 所以不需要break
-        case 'subtract':
-            return state - action.value;
-        default:
-            return state
-    }
-}, 0)   //0 是reduce 方法的第二个参数 , 表示初始化的state值
-
-console.log(finalState)
-
-*/
-//步骤四 :  Object.assign() //第一个参数必须是{} , 这样才是创建一个新的对象
-// state 是不可变的变量 , 因此每次都需要创建一个新的变量返回
-// 而简单类型是不能使用 assign 方法的, 因此初始的state 必须是一个对象
-// 所以先要把上面步骤三里面的, reduce 中的第二个参数默认state = 0 , 换成对象,  {}
-// 然后比如需要的结果 , 就以对象属性result进行返回 {result:0}
-
-/*
-const actions = [{type: 'add', value: 1}, {type: 'subtract', value: 2}, {type: 'add', value: 3},
-    {type: 'subtract', value: 4}, {type: 'add', value: 5}]
-
-const finalState = actions.reduce((state, action) => {
-    console.log('state', state, 'action', action)
-    switch (action.type) {
-        case  'add':
-            return Object.assign({}, state, {result: state.result + action.value}) //第一个参数必须是{} , 这样才是创建一个新的对象, 第二个参数指定返回的是一个基于state的新的对象
-        case 'subtract':
-            return Object.assign({}, state, {result: state.result - action.value});
-        default:
-            return state
-    }
-}, {result: 0})   //0 是reduce 方法的第二个参数 , 表示初始化的state值
-
-console.log(finalState)
- */
-
-//步骤五:
-// 结合store
-//当创建了actions  那么需要用store来处理actions
-
-import {Action, Reducer, createStore, Store} from 'redux';
-import {newValue} from "./mod";
-
-//action 必须有type属性 , 定义actionTypes
-enum actionTypes {
+// 定义actionType类型 , 因为TS 强类型 , 在定义crateAction 等时候需要用到 , 相当于全局静态变量一样
+enum actionType{
     ADD,
     SUBTRACT
 }
 
-//定义接口继承自Action , 这个接口是用来作为 创建action函数 的返回类型
-interface CalcAction extends Action {
-    //Action 父类自带有type 属性的定义类型
-    value: number  //定义value 属性为number
+// 定义state类型 , 整个关注的核心就是state ,  这里要预先定义好state的结构
+// 注意 AppState 要定义成接口类型, 而不是对象类型
+interface AppState {
+    sum: number,
+    history: string[]    // 加入history 属性string
 }
 
-// 定义创建action的方法  , 这个方法 返回一个创建action的方法 ,
-// createAddAction : (value:number) => CalcAction  后面的这一截表示返回结果类型的是一个方法
-// 这两个创建action的方法,   是提供给store使用的 ,  这个reduce 都只是定义各种方法
-// reduce 方法定义了 action 怎么处理
-// create action 方法定义了   怎么创建 `特定的action方法` ,  最终都是提供给store 调用
-const createAddAction: (value: number) => CalcAction = (value) => ({
-    type: actionTypes.ADD,
-    value: value
-})
-
-const createSubtractAction: (value: number) => CalcAction = (value) => ({
-    type: actionTypes.SUBTRACT,
-    // value:value 简写成value
+// 定义createAction
+// 要定义createAction , 首先要定义Action类型, 它继承自redux.Action类型, 默认有type属性, 而且是接口
+// 这里我们自定义一个value 属性
+interface CalcAction extends Action {
+    value:number
+}
+// 首先 它返回的是一个action , 所以 CalcAction
+// 更具体的说它是 (value) => CalcAction 类型
+const createAddAction: (value) => CalcAction = (value) => ({
+    type: actionType.ADD,
     value
 })
 
-// redux 中的reducer 或者 store 最终都是要处理state , 所以这里定义一个类型 AppState
-interface AppState {
-    result: number
-}
+const createSubtractAction: (value) => CalcAction =  (value) => ({
+    type:actionType.SUBTRACT,
+    value
+})
 
 
-// 以前的这些action定义就可以不需要了,   store 到时候会使用createAddAction , 或createSubtractAction , 这样的action创建方法来创建action
-// const actions = [{type: 'add', value: 1}, {type: 'subtract', value: 2}, {type: 'add', value: 3},
-//     {type: 'subtract', value: 4}, {type: 'add', value: 5}]
 
-const reducer: Reducer<AppState> = (state: AppState = {result: 0}, action: CalcAction) => {
-    switch (action.type) {
-        case  actionTypes.ADD:
-            return Object.assign({}, state, {result: state.result + action.value}) //第一个参数必须是{} , 这样才是创建一个新的对象, 第二个参数指定返回的是一个基于state的新的对象
-        case actionTypes.SUBTRACT:
-            return Object.assign({}, state, {result: state.result - action.value});
+// 定义reducer , 定义的时候 , 箭头函数中的参数 如果只是写成state = {sum:0} 这样是错误的
+// 一定要指定类型state: AppState = { sum : 0 }, action:CalcAction
+// const reducer:Reducer<AppState> = (state: AppState = { sum : 0 , history: [] }, action:CalcAction) => {
+
+// 拆分reducer , 这时reducer 的操作不是针对整个state , 而是针对state 里面的属性
+// 所以也就不存在改变state ,   这里都是直接去操作 state 里面的属性, 所以不需要用 object.assign
+const sumReducer:Reducer<number> = (sum: number = 0 , action:CalcAction ) => {
+    switch(action.type) {
+        case actionType.ADD:
+            // return Object.assign({},state,state.sum + action.value) //这里的返回值的更新格式一定要记住 , 传递的是对象, 这样写就是错误的, 返回值错误, state没有更新
+            // history = state.history.concat(`add action value ${action.value}`)
+            return sum + action.value
+        case actionType.SUBTRACT:
+            // history = state.history.concat(`subtract action value ${action.value}`)
+            return sum - action.value
         default:
-            return state
+            return sum;
     }
 }
 
+//同样的拆分的reducer 是去操作属性
+const historyReducer:Reducer<string[]> = (history:string[] = [] , action: CalcAction) => {
+    switch (action.type) {
+        case actionType.ADD :
+            return history.concat(`add action value ${action.value}`)
+        case actionType.SUBTRACT:
+            return history.concat(`subtract action value ${action.value}`)
+        default:
+            return history
+    }
+}
 
-// 使用store
-// appStore:Store<AppState> 定义变量类型,  理解成返回值是一个store , 是一个AppState 相关的Store
-const appStore: Store<AppState> = createStore<AppState>(reducer)
+// 组合拆分 , 就需要用到  ReducersMapObject
+// 定义一个ReducersMapObject 对象, 指定每个属性所对应的reducer
+const reducersMap: ReducersMapObject = {
+    sum: sumReducer,
+    history: historyReducer
+}
 
-// subscribe 这些方法里面都是去直接访问AppState , 而是通过getState 这样类似的方法
-appStore.subscribe(() => {
-    console.log("action was dispatched , state was reduced")
+
+//初始化store
+//const appStore:Store<AppState> = createStore<AppState>(reducer);
+// 使用了拆分的 reducersMap 后, 就必须要用combine 把他们组合起来
+const appStore:Store<AppState> = createStore<AppState>(combineReducers<AppState>(reducersMap));
+
+// 使用subscribe 来获取state , subscribe 要定义在dispatch的前面 否则监控不到state变化
+appStore.subscribe( () => {
+    console.log("action dispatched and state reduced")
     console.log(appStore.getState())
 })
+
+// store dispatcher调用 , 参数为创建action, 调用createAction创建action , 从而改变state
 
 appStore.dispatch(createAddAction(1))
 appStore.dispatch(createSubtractAction(2))
 appStore.dispatch(createAddAction(3))
 appStore.dispatch(createSubtractAction(4))
 appStore.dispatch(createAddAction(5))
-
-
 
 
