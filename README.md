@@ -1,23 +1,39 @@
-`app_before_combine.tsx`  文件是完整redux流程 , 其中AppState加入了一个history属性的, 只有一个针对state的完整的reducer
-`app.tsx` 中做的是需要把sum和history 两个属性, 从一个reducer中拆分开来 
+# `redux` 结合 `react`
+1. 状态state 的定义 , AppState  接口类型
+首先要确定应用的`state`  , 以访问api接口为例子, 这个`state` 设置为`api`返回结果`widgets`
+`state` 对象的属性 `widgets`  
+
+2. (事件类型)actionType的定义, actionType
+和state相关的action , 只有一个属性widgets , 那么就是和widgets相关的action有
+ `REFRESH_WIDGETS_REQUEST` 发起请求 和 `REFRESH_WIDGETS_DONE` 请求完成获得数据 , 这两个事件, actionType 可以理解为就是事件
  
- sumReducer 对应sum属性的处理
- historyReducer 对应history属性的处理 
- 
-因为直接处理的是属性, 不再是直接去操作state , 因此操作属性的时候, 只要属性的类型正确, 
-传递的值也只是属性的值, 而不是直接传递的state, 所以不需要去关心state是否改变
+3. `创建action方法`的定义
+  先要定义`action` ,需要继承自`redux.Action`
+  `action`中需要包含我们需要的自定义的数据(事件数据) , 提供给`reducer`  (事件数据)
+  且结合`actionType` , 前面定义的只是`actionType` , 它也是属于`action`的一部分
+  `创建action方法` 就是完成这个结合的功能,
+  调用`创建action方法`将返回我们定义的`action` ,  包含了`actionType`和`自定义数据` 提供给store调用的
+  `store.dispatch`调用后一旦生成`action` , `store`内部会调用`reducer` 就会处理该`action` 从更新`state` 
+  
+   
+4. 状态更新reducer的定义
+只有一个属性, 所以没有用到拆分reducer. 
+根据AppState 和actionType , 就可以定义reducer , reducer 只是定义当发生`action`事件时`state`的变化
 
-当分别对两个属性的`reducer` 定义好了后,  还需要一个`map`对象 , 引入`redux`中的`ReducersMapObject` 
-指定属性由哪个`reducer`处理
 
-```ts
-const reducersMap: ReducersMapObject = {
-    sum: sumReducer,
-    history: historyReducer
-}
-```
-最后还需要使用combineReducers , 来获取整个的 reducer `combineReducers<AppState>(reducersMap)`
+5. `store`的创建
+  根据定义的`AppState` 和 `reducer` 初始化`store`
+   
+6. 使用`store` 来获取数据
+比如这个例子获取数据的事件有两个 , 1. 发送request , 2. 获取到数据
+那么store就需要按这个流程来 , 定义方法 `refreshWidgets`
+store先`emit request`事件 , 然后store调用fetch方法来取数据, 当数据获取成功 emit DONE 事件
+那么这个获取数据的流程, 就是个`flow`  , 通过`store`来操作
 
-`store`创建的时候需要传入的是最终组合了的`reducer`
 
-`const appStore:Store<AppState> = createStore<AppState>(combineReducers<AppState>(reducersMap));`
+上面这6个步骤都基本上是纯`redux` 代码 
+
+其中定义 `创建action方法` , 和 使用`store` 来获取数据 , 
+这几个基本上就是`定义事件`,  `事件emit流程(使用store定义)`  , 所以可以把他们放在一个文件中
+
+  
